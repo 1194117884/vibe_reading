@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:vibe_reading/providers/reading_provider.dart';
+import 'package:vibe_reading/helpers/book_reader_helper.dart';
+import 'package:vibe_reading/models/book.dart';
+import 'dart:async';
 
 class ReadingScreen extends StatefulWidget {
   final String bookTitle;
   final String? initialText;
+  final Book? book; // Pass the full book object to access file info
   
-  const ReadingScreen({super.key, required this.bookTitle, this.initialText});
+  const ReadingScreen({super.key, required this.bookTitle, this.initialText, this.book});
 
   @override
   State<ReadingScreen> createState() => _ReadingScreenState();
@@ -14,11 +18,86 @@ class ReadingScreen extends StatefulWidget {
 
 class _ReadingScreenState extends State<ReadingScreen> {
   late final String textToShow;
+  bool _isLoading = true;
+  final ScrollController _scrollController = ScrollController();
+  Timer? _progressUpdateTimer;
 
   @override
   void initState() {
     super.initState();
-    textToShow = widget.initialText ?? _sampleText;
+    _loadBookContent();
+    
+    // Add listener to track scroll position and update reading progress
+    _scrollController.addListener(_updateReadingProgress);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _progressUpdateTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadBookContent() async {
+    String content;
+    
+    // If we have a book with a file path, load from file
+    if (widget.book != null && widget.book!.filePath != null) {
+      content = await BookReaderHelper.readBookFile(
+        widget.book!.filePath, 
+        widget.book!.fileType
+      );
+    } else {
+      // Fall back to initial text or sample text
+      content = widget.initialText ?? _sampleText;
+    }
+    
+    setState(() {
+      textToShow = content;
+      _isLoading = false;
+    });
+  }
+
+  void _updateReadingProgress() {
+    // Only update progress if we have a book with an ID
+    if (widget.book != null && widget.book!.id != null) {
+      // Cancel any existing timer
+      _progressUpdateTimer?.cancel();
+      
+      // Set a new timer to update progress after 2 seconds of inactivity
+      _progressUpdateTimer = Timer(const Duration(seconds: 2), () {
+        _saveReadingProgress();
+      });
+    }
+  }
+  
+  void _saveReadingProgress() {
+    // Only update progress if we have a book with an ID
+    if (widget.book != null && widget.book!.id != null) {
+      final readingProvider = Provider.of<ReadingProvider>(context, listen: false);
+      
+      // Get the scroll position
+      final position = _scrollController.position;
+      
+      // Calculate progress as a percentage
+      double progress = 0.0;
+      if (position.maxScrollExtent > 0) {
+        progress = position.pixels / position.maxScrollExtent;
+      }
+      
+      // Determine book status based on progress
+      BookStatus status;
+      if (progress >= 1.0) {
+        status = BookStatus.completed;
+      } else if (progress > 0.0) {
+        status = BookStatus.inProgress;
+      } else {
+        status = BookStatus.notStarted;
+      }
+      
+      // Update the progress in the provider
+      readingProvider.updateBookProgress(widget.book!.id!, progress, status);
+    }
   }
 
   // Sample text for demonstration
@@ -45,18 +124,21 @@ Today, The Great Gatsby is widely considered to be one of the greatest novels ev
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: SelectableText(
-            textToShow,
-            style: const TextStyle(fontSize: 18, height: 1.5),
-            selectionControls: _CustomTextSelectionControls(
-              onCapture: (text) => _onCapture(context, text),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                child: SelectableText(
+                  textToShow,
+                  style: const TextStyle(fontSize: 18, height: 1.5),
+                  selectionControls: _CustomTextSelectionControls(
+                    onCapture: (text) => _onCapture(context, text),
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-      ),
     );
   }
 

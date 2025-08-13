@@ -103,6 +103,17 @@ class ReadingProvider with ChangeNotifier {
     await refreshBooks();
   }
 
+  Future<void> updateBookProgress(int bookId, double progress, BookStatus status) async {
+    final bookIndex = _books.indexWhere((book) => book.id == bookId);
+    if (bookIndex != -1) {
+      final updatedBook = _books[bookIndex].copy(
+        progress: progress,
+        status: status,
+      );
+      await updateBook(updatedBook);
+    }
+  }
+
   Future<void> deleteBook(int id) async {
     await DatabaseHelper.instance.delete(id);
     await refreshBooks();

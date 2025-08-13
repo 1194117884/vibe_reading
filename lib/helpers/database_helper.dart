@@ -33,7 +33,9 @@ CREATE TABLE books (
   coverColor INTEGER NOT NULL,
   progress REAL NOT NULL,
   status TEXT NOT NULL,
-  imagePath TEXT
+  imagePath TEXT,
+  filePath TEXT,
+  fileType TEXT
 )
 ''');
     
@@ -72,6 +74,16 @@ CREATE TABLE vocabulary (
 )
 ''');
     }
+    
+    // Add filePath and fileType columns if upgrading from version 2 to 3
+    if (oldVersion <= 2) {
+      try {
+        await db.execute('ALTER TABLE books ADD COLUMN filePath TEXT');
+        await db.execute('ALTER TABLE books ADD COLUMN fileType TEXT');
+      } catch (e) {
+        // Columns might already exist, ignore the error
+      }
+    }
   }
 
   Future<Book> create(Book book) async {
@@ -85,7 +97,7 @@ CREATE TABLE vocabulary (
 
     final maps = await db.query(
       'books',
-      columns: ['id', 'title', 'author', 'coverColor', 'progress', 'status', 'imagePath'],
+      columns: ['id', 'title', 'author', 'coverColor', 'progress', 'status', 'imagePath', 'filePath', 'fileType'],
       where: 'id = ?',
       whereArgs: [id],
     );

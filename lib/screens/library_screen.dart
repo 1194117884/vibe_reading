@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:vibe_reading/models/book.dart';
 import 'package:vibe_reading/providers/reading_provider.dart';
 import 'package:vibe_reading/screens/reading_screen.dart';
+import 'package:file_picker/file_picker.dart';
 
 class LibraryScreen extends StatelessWidget {
   const LibraryScreen({super.key});
@@ -146,7 +147,10 @@ class LibraryScreen extends StatelessWidget {
   void _navigateToReadingScreen(BuildContext context, Book book) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => ReadingScreen(bookTitle: book.title),
+        builder: (context) => ReadingScreen(
+          bookTitle: book.title,
+          book: book,
+        ),
       ),
     );
   }
@@ -203,6 +207,11 @@ class LibraryScreen extends StatelessWidget {
                   labelText: 'Author',
                 ),
               ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => _importBookFromFile(context, readingProvider),
+                child: const Text('Import from File'),
+              ),
             ],
           ),
           actions: [
@@ -228,5 +237,48 @@ class LibraryScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _importBookFromFile(BuildContext context, ReadingProvider readingProvider) async {
+    // Close the current dialog
+    Navigator.of(context).pop();
+    
+    // Show file picker
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['txt', 'pdf', 'epub', 'mobi'],
+    );
+
+    if (result != null) {
+      final filePath = result.files.single.path;
+      final fileName = result.files.single.name;
+      
+      if (filePath != null) {
+        // Extract title and author from filename if not provided
+        final title = fileName.replaceAll(RegExp(r'\.(txt|pdf|epub|mobi)$'), '');
+        final fileType = filePath.split('.').last.toLowerCase();
+        
+        final newBook = Book(
+          title: title,
+          author: 'Unknown Author',
+          coverColor: Colors.primaries[readingProvider.books.length % Colors.primaries.length],
+          progress: 0.0,
+          status: BookStatus.notStarted,
+          filePath: filePath,
+          fileType: fileType,
+        );
+        
+        await readingProvider.addBook(newBook);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Book "$title" imported successfully!')),
+        );
+      }
+    } else {
+      // User canceled the picker
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No file selected.')),
+      );
+    }
   }
 }

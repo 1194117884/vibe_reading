@@ -10,6 +10,8 @@ class Book {
   final double progress;
   final BookStatus status;
   final String? imagePath;
+  final String? filePath; // Path to the actual book file
+  final String? fileType; // Type of the book file (txt, pdf, epub, etc.)
 
   const Book({
     this.id,
@@ -19,6 +21,8 @@ class Book {
     required this.progress,
     required this.status,
     this.imagePath,
+    this.filePath,
+    this.fileType,
   });
 
   Book copy({
@@ -29,6 +33,8 @@ class Book {
     double? progress,
     BookStatus? status,
     String? imagePath,
+    String? filePath,
+    String? fileType,
   }) =>
       Book(
         id: id ?? this.id,
@@ -38,6 +44,8 @@ class Book {
         progress: progress ?? this.progress,
         status: status ?? this.status,
         imagePath: imagePath ?? this.imagePath,
+        filePath: filePath ?? this.filePath,
+        fileType: fileType ?? this.fileType,
       );
 
   static Book fromMap(Map<String, dynamic> map) => Book(
@@ -48,6 +56,8 @@ class Book {
         progress: map['progress'] as double,
         status: BookStatus.values.firstWhere((e) => e.toString() == map['status']),
         imagePath: map['imagePath'] as String?,
+        filePath: map['filePath'] as String?,
+        fileType: map['fileType'] as String?,
       );
 
   Map<String, dynamic> toMap() => {
@@ -58,5 +68,7 @@ class Book {
         'progress': progress,
         'status': status.toString(),
         'imagePath': imagePath,
+        'filePath': filePath,
+        'fileType': fileType,
       };
 }
